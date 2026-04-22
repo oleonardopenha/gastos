@@ -200,9 +200,11 @@ Escanear o QR code com o Expo Go.
 
 **Problemas comuns:**
 - `SDK mismatch`: verificar se `"expo": "~54.0.0"` no package.json. Deletar node_modules e reinstalar.
-- `PlatformConstants not found`: remover `"newArchEnabled": true` do app.json se existir.
+- `PlatformConstants not found`: `"newArchEnabled": true` no app.json. Já removido no projeto atual.
 - `PowerShell execution policy`: usar CMD em vez de PowerShell.
 - Cache travado: sempre usar `npx expo start --clear`.
+- Bundle trava em 91% no Expo Go: problema de rede/firewall entre PC e celular. Alternativa: gerar APK via EAS Build.
+- `Failed to download remote update`: celular não consegue se conectar ao servidor Metro. Verificar se PC e celular estão na mesma rede Wi-Fi.
 
 ---
 
@@ -234,22 +236,35 @@ Escanear o QR code com o Expo Go.
 - [ ] **Gráfico de barras** — na Visão Geral, evolução de gastos mês a mês
 - [ ] **Orçamento por categoria** — definir limite mensal e alertar quando ultrapassar
 - [ ] **Notificações** — lembrete para registrar gastos
-- [ ] **Geração de APK** — build via EAS para instalar direto no Android sem Expo Go
+- [ ] **Geração de APK** — EAS Build configurado, falta rodar com projeto FORA do OneDrive (ver seção "Geração do APK")
 - [ ] **Integração bancária** — importar extratos (Open Finance / OFX) — planejado para futuro
 
 ---
 
-## Geração do APK (quando pronto para produzir)
+## Geração do APK
+
+O projeto já tem `eas.json` configurado com perfil `preview` (APK) e `production` (AAB).
+A conta Expo é `oleonardopenha` (já configurada em `app.json` como `owner`).
 
 ```bash
-npm install -g eas-cli
-eas login
-eas build:configure
-eas build -p android --profile preview
+# Na pasta do projeto (FORA do OneDrive — ver nota abaixo)
+npx eas-cli login        # usuário: oleonardopenha
+npx eas-cli build -p android --profile preview
 ```
 
-Gera um APK para instalar diretamente no Android (sem precisar de Play Store).
-Requer conta gratuita em expo.dev.
+Aguardar na fila do plano free (~15-30 min). Ao terminar, baixar o APK pelo link do build no expo.dev e instalar no Android.
+
+### IMPORTANTE — Projeto deve estar fora do OneDrive
+O projeto em `C:\Users\Leonardo\OneDrive\...` causa erro no EAS Build:
+```
+tar: src/components: Cannot mkdir: Permission denied
+```
+**Solução:** copiar o projeto para fora do OneDrive, ex: `C:\Projetos\gastos`, antes de rodar o build.
+
+### Arquivos de configuração do EAS já presentes
+- `eas.json` — perfis preview (APK) e production (AAB)
+- `.npmrc` — `legacy-peer-deps=true` (necessário para compatibilidade de dependências)
+- `app.json` — inclui `"owner": "oleonardopenha"`
 
 ---
 
