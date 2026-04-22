@@ -11,6 +11,7 @@
         "backgroundColor": "#6C63FF"
       }
     },
-    "platforms": ["android"]
+    "platforms": ["android"],
+    "owner": "oleonardopenha"
   }
 }
