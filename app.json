@@ -11,7 +11,7 @@
         "backgroundColor": "#6C63FF"
       }
     },
-    "platforms": ["android"],
+    "platforms": ["android", "web"],
     "newArchEnabled": false
   }
 }

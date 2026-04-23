@@ -8,11 +8,10 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 import { supabase } from '../../lib/supabase';
@@ -95,6 +94,20 @@ export default function ExportScreen() {
 
     const csv = generateCSV(data);
     const filename = `gastos_${isoStart}_${isoEnd}.csv`;
+
+    if (Platform.OS === 'web') {
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    const FileSystem = await import('expo-file-system');
+    const Sharing = await import('expo-sharing');
     const uri = FileSystem.documentDirectory + filename;
 
     await FileSystem.writeAsStringAsync(uri, csv, {
