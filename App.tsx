@@ -1,4 +1,3 @@
-import '@expo/metro-runtime';
 import 'react-native-url-polyfill/auto';
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
