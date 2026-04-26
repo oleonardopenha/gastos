@@ -10,11 +10,13 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { format, addMonths } from 'date-fns';
 import { useFocusEffect } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -74,6 +76,7 @@ export default function AddTransactionScreen() {
   const [showCatModal, setShowCatModal] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [newCatName, setNewCatName] = useState('');
+  const [datePickerTarget, setDatePickerTarget] = useState<'date' | 'recurrenceEnd' | null>(null);
 
   const fetchData = useCallback(async () => {
     const [catsRes, walletsRes] = await Promise.all([
@@ -187,6 +190,21 @@ export default function AddTransactionScreen() {
     }
   };
 
+  const getPickerDate = (): Date => {
+    const raw = datePickerTarget === 'date' ? date : recurrenceEndDate;
+    const parsed = parseDate(raw);
+    return parsed ? new Date(parsed + 'T00:00:00') : new Date();
+  };
+
+  const handleDatePickerChange = (_event: any, selected?: Date) => {
+    setDatePickerTarget(null);
+    if (selected) {
+      const formatted = format(selected, 'dd/MM/yyyy');
+      if (datePickerTarget === 'date') setDate(formatted);
+      else if (datePickerTarget === 'recurrenceEnd') setRecurrenceEndDate(formatted);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -207,13 +225,18 @@ export default function AddTransactionScreen() {
         />
 
         <Text style={styles.label}>Data (DD/MM/AAAA)</Text>
-        <TextInput
-          style={styles.input}
-          value={date}
-          onChangeText={setDate}
-          placeholder="22/04/2026"
-          keyboardType="numbers-and-punctuation"
-        />
+        <View style={styles.dateRow}>
+          <TextInput
+            style={[styles.input, styles.dateInput]}
+            value={date}
+            onChangeText={setDate}
+            placeholder="22/04/2026"
+            keyboardType="numbers-and-punctuation"
+          />
+          <TouchableOpacity style={styles.calendarBtn} onPress={() => setDatePickerTarget('date')}>
+            <Ionicons name="calendar-outline" size={22} color="#6C63FF" />
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.label}>Categoria</Text>
         <TouchableOpacity style={styles.selector} onPress={() => setShowCatModal(true)}>
@@ -273,13 +296,18 @@ export default function AddTransactionScreen() {
         {isRecurring && (
           <>
             <Text style={styles.label}>Última recorrência (DD/MM/AAAA)</Text>
-            <TextInput
-              style={styles.input}
-              value={recurrenceEndDate}
-              onChangeText={setRecurrenceEndDate}
-              placeholder="31/12/2026"
-              keyboardType="numbers-and-punctuation"
-            />
+            <View style={styles.dateRow}>
+              <TextInput
+                style={[styles.input, styles.dateInput]}
+                value={recurrenceEndDate}
+                onChangeText={setRecurrenceEndDate}
+                placeholder="31/12/2026"
+                keyboardType="numbers-and-punctuation"
+              />
+              <TouchableOpacity style={styles.calendarBtn} onPress={() => setDatePickerTarget('recurrenceEnd')}>
+                <Ionicons name="calendar-outline" size={22} color="#6C63FF" />
+              </TouchableOpacity>
+            </View>
           </>
         )}
 
@@ -335,6 +363,15 @@ export default function AddTransactionScreen() {
           />
         </SafeAreaView>
       </Modal>
+
+      {datePickerTarget !== null && (
+        <DateTimePicker
+          value={getPickerDate()}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'inline' : 'default'}
+          onChange={handleDatePickerChange}
+        />
+      )}
 
       {/* Modal de carteiras */}
       <Modal visible={showWalletModal} animationType="slide" presentationStyle="pageSheet">
@@ -418,6 +455,17 @@ const styles = StyleSheet.create({
   trackOn: { backgroundColor: '#6C63FF' },
   thumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFFFFF' },
   thumbOn: { alignSelf: 'flex-end' },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  dateInput: { flex: 1 },
+  calendarBtn: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    padding: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   saveBtn: { backgroundColor: '#6C63FF', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },

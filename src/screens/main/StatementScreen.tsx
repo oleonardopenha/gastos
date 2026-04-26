@@ -40,8 +40,10 @@ export default function StatementScreen() {
     fetchTransactions();
   }, [fetchTransactions]);
 
-  const renderItem = ({ item }: { item: Transaction }) => (
-    <View style={styles.card}>
+  const renderItem = ({ item }: { item: Transaction }) => {
+    const isSpecial = item.is_recurring || item.total_installments > 1;
+    return (
+    <View style={[styles.card, isSpecial && styles.cardSpecial]}>
       <View style={[styles.dot, { backgroundColor: item.category?.color ?? '#8B8B9C' }]} />
       <View style={styles.info}>
         <View style={styles.row}>
@@ -75,6 +77,7 @@ export default function StatementScreen() {
       </View>
     </View>
   );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -116,6 +119,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
+  },
+  cardSpecial: {
+    backgroundColor: '#F0FFF0',
   },
   dot: { width: 10, height: 10, borderRadius: 5, marginRight: 12, marginTop: 5 },
   info: { flex: 1 },

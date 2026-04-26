@@ -8,8 +8,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { PieChart } from 'react-native-chart-kit';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { PieChart, BarChart } from 'react-native-chart-kit';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { supabase } from '../../lib/supabase';
@@ -27,6 +27,72 @@ export default function OverviewScreen() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
+  const [maxFutureDate, setMaxFutureDate] = useState<Date | undefined>(undefined);
+  const [barLabels, setBarLabels] = useState<string[]>([]);
+  const [barTotals, setBarTotals] = useState<number[]>([]);
+
+  useEffect(() => {
+    const fetchMaxFutureDate = async () => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const [{ data: futureData }, { data: recurringData }] = await Promise.all([
+        supabase
+          .from('transactions')
+          .select('date')
+          .eq('user_id', user?.id)
+          .gt('date', today)
+          .order('date', { ascending: false })
+          .limit(1),
+        supabase
+          .from('transactions')
+          .select('recurrence_end_date')
+          .eq('user_id', user?.id)
+          .eq('is_recurring', true)
+          .not('recurrence_end_date', 'is', null)
+          .order('recurrence_end_date', { ascending: false })
+          .limit(1),
+      ]);
+
+      const dates: Date[] = [];
+      if (futureData?.[0]?.date) dates.push(new Date(futureData[0].date + 'T00:00:00'));
+      if (recurringData?.[0]?.recurrence_end_date)
+        dates.push(new Date(recurringData[0].recurrence_end_date + 'T00:00:00'));
+
+      if (dates.length > 0) {
+        setMaxFutureDate(new Date(Math.max(...dates.map((d) => d.getTime()))));
+      }
+    };
+    fetchMaxFutureDate();
+  }, [user?.id]);
+
+  useEffect(() => {
+    const fetchBarData = async () => {
+      const now = new Date();
+      const monthsArr = Array.from({ length: 12 }, (_, i) => {
+        const month = subMonths(now, 11 - i);
+        return {
+          start: format(startOfMonth(month), 'yyyy-MM-dd'),
+          end: format(endOfMonth(month), 'yyyy-MM-dd'),
+          label: format(month, 'MMM', { locale: ptBR }).slice(0, 3).toUpperCase(),
+        };
+      });
+
+      const { data } = await supabase
+        .from('transactions')
+        .select('date, amount')
+        .eq('user_id', user?.id)
+        .gte('date', monthsArr[0].start)
+        .lte('date', monthsArr[11].end);
+
+      const totals = monthsArr.map((m) => {
+        const txns = data?.filter((t) => t.date >= m.start && t.date <= m.end) ?? [];
+        return txns.reduce((sum, t) => sum + Number(t.amount), 0);
+      });
+
+      setBarLabels(monthsArr.map((m) => m.label));
+      setBarTotals(totals);
+    };
+    fetchBarData();
+  }, [user?.id]);
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
@@ -72,13 +138,20 @@ export default function OverviewScreen() {
     return raw.charAt(0).toUpperCase() + raw.slice(1);
   })();
 
+  const hasBarData = barTotals.some((v) => v > 0);
+  const barChartWidth = Math.max(SCREEN_WIDTH - 64, barLabels.length * 52);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Visão Geral</Text>
       </View>
 
-      <MonthSelector selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} />
+      <MonthSelector
+        selectedMonth={selectedMonth}
+        onMonthChange={setSelectedMonth}
+        maxDate={maxFutureDate}
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.totalCard}>
@@ -89,6 +162,38 @@ export default function OverviewScreen() {
             <Text style={styles.totalValue}>{fmt(totalSpending)}</Text>
           )}
         </View>
+
+        {hasBarData && (
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Últimos 12 meses</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <BarChart
+                data={{
+                  labels: barLabels,
+                  datasets: [{ data: barTotals }],
+                }}
+                width={barChartWidth}
+                height={180}
+                yAxisLabel=""
+                yAxisSuffix=""
+                chartConfig={{
+                  backgroundGradientFrom: '#FFFFFF',
+                  backgroundGradientTo: '#FFFFFF',
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(108, 99, 255, ${opacity})`,
+                  labelColor: () => '#8B8B9C',
+                  barPercentage: 0.65,
+                  fillShadowGradient: '#6C63FF',
+                  fillShadowGradientOpacity: 1,
+                }}
+                fromZero
+                showValuesOnTopOfBars={false}
+                withInnerLines={false}
+                style={{ borderRadius: 12, marginLeft: -8 }}
+              />
+            </ScrollView>
+          </View>
+        )}
 
         {!loading && pieData.length > 0 && (
           <View style={styles.chartCard}>
@@ -132,6 +237,7 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 36, fontWeight: '700', color: '#FFFFFF' },
   chartCard: {
     marginHorizontal: 16,
+    marginBottom: 16,
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
