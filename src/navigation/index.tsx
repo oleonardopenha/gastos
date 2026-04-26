@@ -9,7 +9,8 @@ import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/auth/LoginScreen';
 import OverviewScreen from '../screens/main/OverviewScreen';
 import WalletsNavigator from './WalletsNavigator';
-import StatementScreen from '../screens/main/StatementScreen';
+import StatementNavigator from './StatementNavigator';
+import CategoriesNavigator from './CategoriesNavigator';
 import AddTransactionScreen from '../screens/main/AddTransactionScreen';
 import ExportScreen from '../screens/main/ExportScreen';
 
@@ -26,11 +27,12 @@ function MainTabs() {
         tabBarStyle: { height: 60, paddingBottom: 8 },
         tabBarIcon: ({ focused, color, size }) => {
           const icons: Record<string, { active: string; inactive: string }> = {
-            Overview: { active: 'pie-chart', inactive: 'pie-chart-outline' },
-            Wallets: { active: 'wallet', inactive: 'wallet-outline' },
-            AddTransaction: { active: 'add-circle', inactive: 'add-circle-outline' },
-            Statement: { active: 'list', inactive: 'list-outline' },
-            Export: { active: 'download', inactive: 'download-outline' },
+            Overview:       { active: 'pie-chart',       inactive: 'pie-chart-outline' },
+            Wallets:        { active: 'wallet',           inactive: 'wallet-outline' },
+            AddTransaction: { active: 'add-circle',       inactive: 'add-circle-outline' },
+            Statement:      { active: 'list',             inactive: 'list-outline' },
+            Categories:     { active: 'pricetags',        inactive: 'pricetags-outline' },
+            Export:         { active: 'download',         inactive: 'download-outline' },
           };
           const iconSet = icons[route.name] ?? { active: 'help-circle', inactive: 'help-circle-outline' };
           const iconName = focused ? iconSet.active : iconSet.inactive;
@@ -39,11 +41,12 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Overview" component={OverviewScreen} options={{ title: 'Visão Geral' }} />
-      <Tab.Screen name="Wallets" component={WalletsNavigator} options={{ title: 'Carteiras' }} />
+      <Tab.Screen name="Overview"       component={OverviewScreen}       options={{ title: 'Visão Geral' }} />
+      <Tab.Screen name="Wallets"        component={WalletsNavigator}     options={{ title: 'Carteiras' }} />
       <Tab.Screen name="AddTransaction" component={AddTransactionScreen} options={{ title: 'Inserir' }} />
-      <Tab.Screen name="Statement" component={StatementScreen} options={{ title: 'Extrato' }} />
-      <Tab.Screen name="Export" component={ExportScreen} options={{ title: 'Exportar' }} />
+      <Tab.Screen name="Statement"      component={StatementNavigator}   options={{ title: 'Extrato' }} />
+      <Tab.Screen name="Categories"     component={CategoriesNavigator}  options={{ title: 'Categorias' }} />
+      <Tab.Screen name="Export"         component={ExportScreen}         options={{ title: 'Exportar' }} />
     </Tab.Navigator>
   );
 }

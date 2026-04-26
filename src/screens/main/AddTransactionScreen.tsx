@@ -19,6 +19,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Category, Wallet } from '../../types';
+import DatePickerInput from '../../components/DatePickerInput';
 
 const DEFAULT_CATEGORIES = [
   { name: 'Alimentação', color: '#FF6384', icon: 'restaurant' },
@@ -206,14 +207,8 @@ export default function AddTransactionScreen() {
           keyboardType="decimal-pad"
         />
 
-        <Text style={styles.label}>Data (DD/MM/AAAA)</Text>
-        <TextInput
-          style={styles.input}
-          value={date}
-          onChangeText={setDate}
-          placeholder="22/04/2026"
-          keyboardType="numbers-and-punctuation"
-        />
+        <Text style={styles.label}>Data</Text>
+        <DatePickerInput value={date} onChange={setDate} />
 
         <Text style={styles.label}>Categoria</Text>
         <TouchableOpacity style={styles.selector} onPress={() => setShowCatModal(true)}>
@@ -272,14 +267,8 @@ export default function AddTransactionScreen() {
 
         {isRecurring && (
           <>
-            <Text style={styles.label}>Última recorrência (DD/MM/AAAA)</Text>
-            <TextInput
-              style={styles.input}
-              value={recurrenceEndDate}
-              onChangeText={setRecurrenceEndDate}
-              placeholder="31/12/2026"
-              keyboardType="numbers-and-punctuation"
-            />
+            <Text style={styles.label}>Última recorrência</Text>
+            <DatePickerInput value={recurrenceEndDate} onChange={setRecurrenceEndDate} />
           </>
         )}
 

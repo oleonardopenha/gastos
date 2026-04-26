@@ -1,23 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView,
+  Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Wallet, Transaction } from '../../types';
+import DatePickerInput from '../../components/DatePickerInput';
+import { downloadCSV } from '../../lib/exportUtils';
 
 export default function ExportScreen() {
   const { user } = useAuth();
@@ -77,34 +71,20 @@ export default function ExportScreen() {
       .lte('date', isoEnd)
       .order('date');
 
-    if (selectedWallet) {
-      query = query.eq('wallet_id', selectedWallet.id);
-    }
+    if (selectedWallet) query = query.eq('wallet_id', selectedWallet.id);
 
     const { data, error } = await query;
     setLoading(false);
 
-    if (error || !data) {
-      Alert.alert('Erro', 'Não foi possível buscar os dados');
-      return;
-    }
-    if (data.length === 0) {
-      Alert.alert('Aviso', 'Nenhuma transação encontrada no período');
-      return;
-    }
+    if (error || !data) { Alert.alert('Erro', 'Não foi possível buscar os dados'); return; }
+    if (data.length === 0) { Alert.alert('Aviso', 'Nenhuma transação encontrada no período'); return; }
 
     const csv = generateCSV(data);
     const filename = `gastos_${isoStart}_${isoEnd}.csv`;
-    const uri = FileSystem.documentDirectory + filename;
-
-    await FileSystem.writeAsStringAsync(uri, csv, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, { mimeType: 'text/csv', dialogTitle: 'Exportar gastos' });
-    } else {
-      Alert.alert('Exportado', `Arquivo: ${filename}`);
+    try {
+      await downloadCSV(csv, filename);
+    } catch (e) {
+      Alert.alert('Erro', 'Não foi possível exportar o arquivo');
     }
   };
 
@@ -119,23 +99,11 @@ export default function ExportScreen() {
         <View style={styles.dateRow}>
           <View style={styles.dateField}>
             <Text style={styles.dateLabel}>De</Text>
-            <TextInput
-              style={styles.input}
-              value={startDate}
-              onChangeText={setStartDate}
-              placeholder="DD/MM/AAAA"
-              keyboardType="numbers-and-punctuation"
-            />
+            <DatePickerInput value={startDate} onChange={setStartDate} />
           </View>
           <View style={[styles.dateField, { marginLeft: 12 }]}>
             <Text style={styles.dateLabel}>Até</Text>
-            <TextInput
-              style={styles.input}
-              value={endDate}
-              onChangeText={setEndDate}
-              placeholder="DD/MM/AAAA"
-              keyboardType="numbers-and-punctuation"
-            />
+            <DatePickerInput value={endDate} onChange={setEndDate} />
           </View>
         </View>
 
@@ -194,36 +162,17 @@ const styles = StyleSheet.create({
   dateRow: { flexDirection: 'row' },
   dateField: { flex: 1 },
   dateLabel: { fontSize: 12, color: '#8B8B9C', marginBottom: 6 },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-  },
   walletOpt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, marginBottom: 8,
+    borderWidth: 2, borderColor: 'transparent',
   },
   walletOptActive: { borderColor: '#6C63FF' },
   walletOptText: { flex: 1, fontSize: 15, color: '#1A1A2E', fontWeight: '500' },
   exportBtn: {
-    backgroundColor: '#6C63FF',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 32,
+    backgroundColor: '#6C63FF', borderRadius: 12, padding: 16,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 8, marginTop: 32,
   },
   exportBtnDisabled: { opacity: 0.6 },
   exportBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },

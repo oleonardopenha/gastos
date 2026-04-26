@@ -8,8 +8,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { PieChart } from 'react-native-chart-kit';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { PieChart, BarChart } from 'react-native-chart-kit';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { supabase } from '../../lib/supabase';
@@ -22,11 +22,19 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
+const fmtK = (v: number) => {
+  if (v >= 1000) return `${(v / 1000).toFixed(1)}k`;
+  return String(Math.round(v));
+};
+
 export default function OverviewScreen() {
   const { user } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [barLabels, setBarLabels] = useState<string[]>([]);
+  const [barValues, setBarValues] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingBar, setLoadingBar] = useState(false);
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
@@ -44,9 +52,41 @@ export default function OverviewScreen() {
     setLoading(false);
   }, [selectedMonth, user?.id]);
 
+  const fetchBarData = useCallback(async () => {
+    setLoadingBar(true);
+    const months = Array.from({ length: 6 }, (_, i) => subMonths(selectedMonth, 5 - i));
+    const start = format(startOfMonth(months[0]), 'yyyy-MM-dd');
+    const end = format(endOfMonth(months[months.length - 1]), 'yyyy-MM-dd');
+
+    const { data } = await supabase
+      .from('transactions')
+      .select('amount, date')
+      .eq('user_id', user?.id)
+      .gte('date', start)
+      .lte('date', end);
+
+    if (data) {
+      const labels: string[] = [];
+      const values: number[] = [];
+      for (const month of months) {
+        const ms = format(startOfMonth(month), 'yyyy-MM-dd');
+        const me = format(endOfMonth(month), 'yyyy-MM-dd');
+        const total = data
+          .filter((t) => t.date >= ms && t.date <= me)
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+        labels.push(format(month, 'MMM', { locale: ptBR }));
+        values.push(total);
+      }
+      setBarLabels(labels);
+      setBarValues(values);
+    }
+    setLoadingBar(false);
+  }, [selectedMonth, user?.id]);
+
   useEffect(() => {
     fetchTransactions();
-  }, [fetchTransactions]);
+    fetchBarData();
+  }, [fetchTransactions, fetchBarData]);
 
   const totalSpending = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
 
@@ -59,18 +99,23 @@ export default function OverviewScreen() {
     categoryMap[key].total += Number(t.amount);
   }
 
-  const pieData = Object.values(categoryMap).map((c) => ({
-    name: c.name,
-    population: Math.round(c.total * 100) / 100,
-    color: c.color,
-    legendFontColor: '#1A1A2E',
-    legendFontSize: 12,
-  }));
+  const pieData = Object.values(categoryMap)
+    .sort((a, b) => b.total - a.total)
+    .map((c) => ({
+      name: c.name,
+      population: Math.round(c.total * 100) / 100,
+      color: c.color,
+      legendFontColor: '#1A1A2E',
+      legendFontSize: 12,
+    }));
 
   const monthLabel = (() => {
     const raw = format(selectedMonth, 'MMMM yyyy', { locale: ptBR });
     return raw.charAt(0).toUpperCase() + raw.slice(1);
   })();
+
+  const chartWidth = Math.min(SCREEN_WIDTH - 32, 560);
+  const hasBarData = barValues.some((v) => v > 0);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -95,7 +140,7 @@ export default function OverviewScreen() {
             <Text style={styles.chartTitle}>Gastos por Categoria</Text>
             <PieChart
               data={pieData}
-              width={SCREEN_WIDTH - 32}
+              width={chartWidth}
               height={200}
               chartConfig={{ color: (opacity = 1) => `rgba(0,0,0,${opacity})` }}
               accessor="population"
@@ -105,6 +150,43 @@ export default function OverviewScreen() {
             />
           </View>
         )}
+
+        {/* Bar chart: last 6 months */}
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Evolução Mensal</Text>
+          {loadingBar ? (
+            <ActivityIndicator color="#6C63FF" style={{ marginVertical: 40 }} />
+          ) : hasBarData ? (
+            <BarChart
+              data={{
+                labels: barLabels,
+                datasets: [{ data: barValues.map((v) => Math.round(v * 100) / 100) }],
+              }}
+              width={chartWidth}
+              height={180}
+              fromZero
+              showValuesOnTopOfBars={false}
+              withInnerLines={false}
+              chartConfig={{
+                backgroundColor: '#FFFFFF',
+                backgroundGradientFrom: '#FFFFFF',
+                backgroundGradientTo: '#FFFFFF',
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(108,99,255,${opacity})`,
+                labelColor: () => '#8B8B9C',
+                barPercentage: 0.6,
+                formatYLabel: fmtK,
+              }}
+              style={{ marginLeft: -16, borderRadius: 12 }}
+              yAxisLabel=""
+              yAxisSuffix=""
+            />
+          ) : (
+            <View style={styles.barEmpty}>
+              <Text style={styles.emptyText}>Sem dados nos últimos 6 meses</Text>
+            </View>
+          )}
+        </View>
 
         {!loading && pieData.length === 0 && (
           <View style={styles.empty}>
@@ -122,21 +204,17 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700', color: '#1A1A2E' },
   content: { paddingBottom: 32 },
   totalCard: {
-    margin: 16,
-    padding: 24,
-    backgroundColor: '#6C63FF',
-    borderRadius: 20,
-    alignItems: 'center',
+    margin: 16, padding: 24, backgroundColor: '#6C63FF',
+    borderRadius: 20, alignItems: 'center',
   },
   totalLabel: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 8 },
   totalValue: { fontSize: 36, fontWeight: '700', color: '#FFFFFF' },
   chartCard: {
-    marginHorizontal: 16,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    marginHorizontal: 16, marginBottom: 16, padding: 16,
+    backgroundColor: '#FFFFFF', borderRadius: 20,
   },
   chartTitle: { fontSize: 16, fontWeight: '600', color: '#1A1A2E', marginBottom: 12 },
-  empty: { alignItems: 'center', paddingTop: 48 },
+  barEmpty: { alignItems: 'center', paddingVertical: 32 },
+  empty: { alignItems: 'center', paddingTop: 16 },
   emptyText: { fontSize: 14, color: '#8B8B9C' },
 });

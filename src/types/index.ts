@@ -41,3 +41,13 @@ export type WalletsStackParamList = {
   AddWallet: undefined;
   EditWallet: { wallet: Wallet };
 };
+
+export type StatementStackParamList = {
+  StatementList: undefined;
+  EditTransaction: { transaction: Transaction };
+};
+
+export type CategoriesStackParamList = {
+  CategoriesList: undefined;
+  EditCategory: { category: Category | null };
+};
