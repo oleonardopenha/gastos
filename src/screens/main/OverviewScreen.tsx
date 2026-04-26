@@ -163,38 +163,6 @@ export default function OverviewScreen() {
           )}
         </View>
 
-        {hasBarData && (
-          <View style={styles.chartCard}>
-            <Text style={styles.chartTitle}>Últimos 12 meses</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <BarChart
-                data={{
-                  labels: barLabels,
-                  datasets: [{ data: barTotals }],
-                }}
-                width={barChartWidth}
-                height={180}
-                yAxisLabel=""
-                yAxisSuffix=""
-                chartConfig={{
-                  backgroundGradientFrom: '#FFFFFF',
-                  backgroundGradientTo: '#FFFFFF',
-                  decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(108, 99, 255, ${opacity})`,
-                  labelColor: () => '#8B8B9C',
-                  barPercentage: 0.65,
-                  fillShadowGradient: '#6C63FF',
-                  fillShadowGradientOpacity: 1,
-                }}
-                fromZero
-                showValuesOnTopOfBars={false}
-                withInnerLines={false}
-                style={{ borderRadius: 12, marginLeft: -8 }}
-              />
-            </ScrollView>
-          </View>
-        )}
-
         {!loading && pieData.length > 0 && (
           <View style={styles.chartCard}>
             <Text style={styles.chartTitle}>Gastos por Categoria</Text>
@@ -214,6 +182,38 @@ export default function OverviewScreen() {
         {!loading && pieData.length === 0 && (
           <View style={styles.empty}>
             <Text style={styles.emptyText}>Nenhum gasto registrado neste mês</Text>
+          </View>
+        )}
+
+        {hasBarData && (
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Gastos Total por Mês</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <BarChart
+                data={{
+                  labels: barLabels,
+                  datasets: [{ data: barTotals }],
+                }}
+                width={barChartWidth}
+                height={180}
+                yAxisLabel=""
+                yAxisSuffix=""
+                chartConfig={{
+                  backgroundGradientFrom: '#FFFFFF',
+                  backgroundGradientTo: '#FFFFFF',
+                  decimalPlaces: 0,
+                  color: () => '#6C63FF',
+                  labelColor: () => '#8B8B9C',
+                  barPercentage: 0.65,
+                  fillShadowGradient: '#6C63FF',
+                  fillShadowGradientOpacity: 1,
+                }}
+                fromZero
+                showValuesOnTopOfBars={false}
+                withInnerLines={false}
+                style={{ borderRadius: 12, marginLeft: -8 }}
+              />
+            </ScrollView>
           </View>
         )}
       </ScrollView>

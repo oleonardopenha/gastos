@@ -43,7 +43,7 @@ function MainTabs() {
       <Tab.Screen name="Wallets" component={WalletsNavigator} options={{ title: 'Carteiras' }} />
       <Tab.Screen name="AddTransaction" component={AddTransactionScreen} options={{ title: 'Inserir' }} />
       <Tab.Screen name="Statement" component={StatementScreen} options={{ title: 'Extrato' }} />
-      <Tab.Screen name="Export" component={ExportScreen} options={{ title: 'Exportar' }} />
+      <Tab.Screen name="Export" component={ExportScreen} options={{ title: 'Imp/Exp' }} />
     </Tab.Navigator>
   );
 }
