@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,6 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Wallet, Transaction } from '../../types';
 
-const WebFileInput = Platform.OS === 'web' ? ('input' as any) : null;
-
 const CSV_HEADER = 'Data;Nome;Valor;Categoria;Carteira;Parcelas;Recorrente';
 const CSV_EXAMPLE =
   '22/04/2026;Exemplo - Almoço;25,50;Alimentação;Minha Carteira;1;Não\n' +
@@ -36,7 +34,6 @@ export default function ExportScreen() {
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'dd/MM/yyyy'));
   const [loading, setLoading] = useState(false);
   const [importResult, setImportResult] = useState<{ inserted: number; duplicates: number; errors: number } | null>(null);
-  const fileInputRef = useRef<any>(null);
 
   useEffect(() => {
     supabase
@@ -219,13 +216,19 @@ export default function ExportScreen() {
     setImportResult({ inserted, duplicates, errors });
   };
 
-  const handleFileSelect = (e: any) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => handleImportCSV(ev.target?.result as string);
-    reader.readAsText(file, 'UTF-8');
-    e.target.value = '';
+  const handlePickFile = () => {
+    if (Platform.OS !== 'web') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    input.onchange = (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => handleImportCSV(ev.target?.result as string);
+      reader.readAsText(file, 'UTF-8');
+    };
+    input.click();
   };
 
   return (
@@ -316,28 +319,18 @@ export default function ExportScreen() {
           </Text>
 
           {Platform.OS === 'web' && (
-            <>
-              {/* Hidden file input */}
-              <WebFileInput
-                type="file"
-                accept=".csv"
-                ref={fileInputRef}
-                style={{ display: 'none' }}
-                onChange={handleFileSelect}
-              />
-              <TouchableOpacity
-                style={[styles.actionBtn, loading && styles.actionBtnDisabled]}
-                onPress={() => fileInputRef.current?.click()}
-                disabled={loading}
-              >
-                {loading ? <ActivityIndicator color="#fff" /> : (
-                  <>
-                    <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
-                    <Text style={styles.actionBtnText}>Selecionar arquivo .csv</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </>
+            <TouchableOpacity
+              style={[styles.actionBtn, loading && styles.actionBtnDisabled]}
+              onPress={handlePickFile}
+              disabled={loading}
+            >
+              {loading ? <ActivityIndicator color="#fff" /> : (
+                <>
+                  <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+                  <Text style={styles.actionBtnText}>Selecionar arquivo .csv</Text>
+                </>
+              )}
+            </TouchableOpacity>
           )}
 
           {importResult && (

@@ -22,34 +22,6 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Category, Wallet } from '../../types';
 
-const WebInput = Platform.OS === 'web' ? ('input' as any) : null;
-
-const dateToISO = (ddmmyyyy: string) => {
-  const p = ddmmyyyy.split('/');
-  return p.length === 3 && p[2].length === 4
-    ? `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`
-    : '';
-};
-const isoToDate = (yyyymmdd: string) => {
-  if (!yyyymmdd) return '';
-  const [y, m, d] = yyyymmdd.split('-');
-  return `${d}/${m}/${y}`;
-};
-
-const webDateStyle: any = {
-  padding: '13px 14px',
-  fontSize: '16px',
-  border: '1px solid #E5E5EA',
-  borderRadius: '12px',
-  width: '100%',
-  backgroundColor: '#FFFFFF',
-  color: '#1A1A2E',
-  boxSizing: 'border-box',
-  fontFamily: 'system-ui, sans-serif',
-  outline: 'none',
-  cursor: 'pointer',
-};
-
 const DEFAULT_CATEGORIES = [
   { name: 'Alimentação', color: '#FF6384', icon: 'restaurant' },
   { name: 'Transporte', color: '#36A2EB', icon: 'car' },
@@ -252,28 +224,21 @@ export default function AddTransactionScreen() {
           keyboardType="decimal-pad"
         />
 
-        <Text style={styles.label}>Data</Text>
-        {Platform.OS === 'web' ? (
-          <WebInput
-            type="date"
-            value={dateToISO(date)}
-            onChange={(e: any) => setDate(isoToDate(e.target.value))}
-            style={webDateStyle}
+        <Text style={styles.label}>Data (DD/MM/AAAA)</Text>
+        <View style={styles.dateRow}>
+          <TextInput
+            style={[styles.input, styles.dateInput]}
+            value={date}
+            onChangeText={setDate}
+            placeholder="22/04/2026"
+            keyboardType="numbers-and-punctuation"
           />
-        ) : (
-          <View style={styles.dateRow}>
-            <TextInput
-              style={[styles.input, styles.dateInput]}
-              value={date}
-              onChangeText={setDate}
-              placeholder="22/04/2026"
-              keyboardType="numbers-and-punctuation"
-            />
+          {Platform.OS !== 'web' && (
             <TouchableOpacity style={styles.calendarBtn} onPress={() => setDatePickerTarget('date')}>
               <Ionicons name="calendar-outline" size={22} color="#6C63FF" />
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
 
         <Text style={styles.label}>Categoria</Text>
         <TouchableOpacity style={styles.selector} onPress={() => setShowCatModal(true)}>
@@ -332,28 +297,21 @@ export default function AddTransactionScreen() {
 
         {isRecurring && (
           <>
-            <Text style={styles.label}>Última recorrência</Text>
-            {Platform.OS === 'web' ? (
-              <WebInput
-                type="date"
-                value={dateToISO(recurrenceEndDate)}
-                onChange={(e: any) => setRecurrenceEndDate(isoToDate(e.target.value))}
-                style={webDateStyle}
+            <Text style={styles.label}>Última recorrência (DD/MM/AAAA)</Text>
+            <View style={styles.dateRow}>
+              <TextInput
+                style={[styles.input, styles.dateInput]}
+                value={recurrenceEndDate}
+                onChangeText={setRecurrenceEndDate}
+                placeholder="31/12/2026"
+                keyboardType="numbers-and-punctuation"
               />
-            ) : (
-              <View style={styles.dateRow}>
-                <TextInput
-                  style={[styles.input, styles.dateInput]}
-                  value={recurrenceEndDate}
-                  onChangeText={setRecurrenceEndDate}
-                  placeholder="31/12/2026"
-                  keyboardType="numbers-and-punctuation"
-                />
+              {Platform.OS !== 'web' && (
                 <TouchableOpacity style={styles.calendarBtn} onPress={() => setDatePickerTarget('recurrenceEnd')}>
                   <Ionicons name="calendar-outline" size={22} color="#6C63FF" />
                 </TouchableOpacity>
-              </View>
-            )}
+              )}
+            </View>
           </>
         )}
 
