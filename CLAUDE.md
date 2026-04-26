@@ -2,9 +2,13 @@
 
 ## Visão Geral
 
-App mobile de controle de gastos pessoais para Android, desenvolvido em React Native + Expo.
+App de controle de gastos pessoais desenvolvido em React Native + Expo.
 Dados armazenados no Supabase (PostgreSQL na nuvem) com autenticação por e-mail e senha.
 Uso pessoal — um único usuário.
+
+**Plataformas:** Web (browser, desenvolvimento atual) e Android (produção futura via APK).
+**Pasta local do projeto:** `C:\Projetos\gastos-clean`
+**Branch de desenvolvimento:** `claude/fix-expense-app-DuRrN`
 
 ---
 
@@ -12,14 +16,15 @@ Uso pessoal — um único usuário.
 
 | Camada | Tecnologia |
 |--------|-----------|
-| Mobile | React Native + Expo SDK 54 |
+| Mobile/Web | React Native + Expo SDK 54 |
 | Linguagem | TypeScript |
 | Banco de dados | Supabase (PostgreSQL) |
 | Autenticação | Supabase Auth (e-mail + senha) |
 | Navegação | React Navigation 6 (Bottom Tabs + Native Stack) |
 | Gráficos | react-native-chart-kit + react-native-svg |
 | Datas | date-fns v3 (locale ptBR) |
-| Exportação | expo-file-system + expo-sharing (CSV) |
+| Exportação/Import | Blob download (web) / expo-file-system + expo-sharing (Android) |
+| Web | react-native-web + react-dom + @expo/metro-runtime |
 
 ---
 
@@ -92,7 +97,7 @@ Alimentação, Transporte, Moradia, Saúde, Lazer, Compras, Educação, Outros.
 ```
 /
 ├── App.tsx                          # Entry point — SafeAreaProvider + AuthProvider + Navigation
-├── app.json                         # Config Expo (nome, slug, android package)
+├── app.json                         # Config Expo (web + android, bundler metro)
 ├── package.json                     # Expo SDK 54, react 18.3.1, react-native 0.76.5
 ├── tsconfig.json
 ├── babel.config.js
@@ -101,26 +106,28 @@ Alimentação, Transporte, Moradia, Saúde, Lazer, Compras, Educação, Outros.
     ├── lib/
     │   └── supabase.ts              # Cliente Supabase com AsyncStorage
     ├── types/
-    │   └── index.ts                 # Interfaces: Wallet, Category, Transaction, WalletsStackParamList
+    │   └── index.ts                 # Interfaces: Wallet, Category, Transaction
     ├── context/
     │   └── AuthContext.tsx          # signIn, signUp, signOut, session, user, loading
     ├── navigation/
     │   ├── index.tsx                # Root navigator (Login vs MainTabs)
     │   └── WalletsNavigator.tsx     # Stack: WalletsList → AddWallet / EditWallet
     ├── components/
-    │   └── MonthSelector.tsx        # ScrollView horizontal de meses (18 meses para trás)
+    │   ├── MonthSelector.tsx        # ScrollView horizontal de meses (prop maxDate para meses futuros)
+    │   ├── NativeDatePicker.tsx     # Re-exporta @react-native-community/datetimepicker (nativo)
+    │   └── NativeDatePicker.web.tsx # No-op para web (Metro resolve por plataforma)
     └── screens/
         ├── auth/
-        │   └── LoginScreen.tsx      # Login + Cadastro (toggle entre modos)
+        │   └── LoginScreen.tsx
         ├── main/
-        │   ├── OverviewScreen.tsx   # Visão geral: total do mês + pizza por categoria
-        │   ├── WalletsScreen.tsx    # Carteiras: tabs competência/caixa + totais
-        │   ├── StatementScreen.tsx  # Extrato: lista de transações do mês
-        │   ├── AddTransactionScreen.tsx  # Inserir gasto: parcelamento + recorrência
-        │   └── ExportScreen.tsx     # Exportar CSV por período e/ou carteira
+        │   ├── OverviewScreen.tsx        # Total + pizza por categoria + barras 12 meses
+        │   ├── WalletsScreen.tsx         # Carteiras: tabs competência/caixa
+        │   ├── StatementScreen.tsx       # Extrato: lista de transações
+        │   ├── AddTransactionScreen.tsx  # Inserir gasto
+        │   └── ExportScreen.tsx         # Export/Import CSV
         └── wallets/
-            ├── AddWalletScreen.tsx  # Cadastro: nome + cor + ícone + ciclo caixa
-            └── EditWalletScreen.tsx # Edição + exclusão com dupla confirmação
+            ├── AddWalletScreen.tsx
+            └── EditWalletScreen.tsx
 ```
 
 ---
@@ -132,14 +139,14 @@ Root Stack
 ├── Login (se sem sessão)
 └── Main (se autenticado)
     └── Bottom Tabs
-        ├── Overview     → OverviewScreen
-        ├── Wallets      → WalletsNavigator (Stack)
+        ├── Visão Geral  → OverviewScreen
+        ├── Carteiras    → WalletsNavigator (Stack)
         │   ├── WalletsList → WalletsScreen
         │   ├── AddWallet   → AddWalletScreen
         │   └── EditWallet  → EditWalletScreen (params: { wallet: Wallet })
-        ├── AddTransaction → AddTransactionScreen
-        ├── Statement    → StatementScreen
-        └── Export       → ExportScreen
+        ├── Inserir      → AddTransactionScreen
+        ├── Extrato      → StatementScreen
+        └── Imp/Exp      → ExportScreen
 ```
 
 ---
@@ -163,8 +170,8 @@ Error/Delete:   #E74C3C  (vermelho)
 ### Visão Competência vs Caixa (WalletsScreen)
 - **Competência:** transações com `date` entre o primeiro e último dia do mês selecionado.
 - **Caixa:** usa `cash_flow_start_day` e `cash_flow_end_day` da carteira.
-  - Se `startDay <= endDay`: ciclo dentro do mesmo mês (ex: dia 1 ao 31).
-  - Se `startDay > endDay`: ciclo cruza mês (ex: dia 6 do mês anterior ao dia 5 do mês selecionado).
+  - Se `startDay <= endDay`: ciclo dentro do mesmo mês.
+  - Se `startDay > endDay`: ciclo cruza mês (ex: dia 6 do mês anterior ao dia 5 do atual).
 
 ### Parcelamento (AddTransactionScreen)
 - Cria N registros no banco, um por mês, cada um com `amount = total / N`.
@@ -177,49 +184,69 @@ Error/Delete:   #E74C3C  (vermelho)
 - `recurrence_end_date` indica até quando se repete.
 - Exibido com ícone de seta circular (Ionicons `refresh`) no Extrato.
 
-### Exportação CSV (ExportScreen)
+### MonthSelector — Meses Futuros
+- Aceita prop `maxDate?: Date`.
+- Quando `maxDate` é fornecido e está além do mês atual, gera botões de mês futuros até essa data.
+- Meses futuros aparecem com borda pontilhada verde.
+- OverviewScreen calcula `maxDate` buscando a maior data futura entre parcelas e `recurrence_end_date`.
+
+### Exportação CSV (ExportScreen — aba "Exportar")
 - Separador: `;` (compatível com Excel Brasil).
 - Campos: Data, Nome, Valor, Categoria, Carteira, Parcela, Total Parcelas, Recorrente.
-- Valores com vírgula decimal (ex: `1.250,00`).
-- Compartilhado via `expo-sharing` (abre o menu de compartilhar do Android).
+- Web: download via Blob com BOM UTF-8 (`﻿`) para Excel reconhecer acentos.
+- Android: compartilhamento via expo-sharing.
+
+### Importação CSV (ExportScreen — aba "Importar")
+- Formato esperado: `Data;Nome;Valor;Categoria;Carteira;Parcelas;Recorrente`
+- Valor com vírgula decimal (ex: `25,50`).
+- Detecção de duplicatas: compara data + nome + valor + categoria + carteira com transações existentes no banco.
+- Upload de arquivo: `document.createElement('input')` dinâmico (sem JSX de elemento HTML cru).
+- Template para download disponível na própria tela.
+
+### Extrato — Destaque visual
+- Transações recorrentes (`is_recurring = true`) ou parceladas (`total_installments > 1`) têm fundo verde sutil (`#F0FFF0`) no card.
 
 ---
 
 ## Como Rodar (Desenvolvimento)
 
-**Pré-requisitos no PC:** Node.js LTS, npm, Expo Go no celular Android.
-PC e celular na mesma rede Wi-Fi.
-
+### Web (atual)
 ```bash
-# Na pasta do projeto
+cd C:\Projetos\gastos-clean
 npm install --legacy-peer-deps
-npx expo start --clear
+npx expo start --web --clear
 ```
 
-Escanear o QR code com o Expo Go.
+### Android (futuro — via Expo Go)
+```bash
+npx expo start --clear
+# Escanear QR code com Expo Go no celular Android (mesma rede Wi-Fi)
+```
 
 **Problemas comuns:**
-- `SDK mismatch`: verificar se `"expo": "~54.0.0"` no package.json. Deletar node_modules e reinstalar.
-- `PlatformConstants not found`: remover `"newArchEnabled": true` do app.json se existir.
-- `PowerShell execution policy`: usar CMD em vez de PowerShell.
-- Cache travado: sempre usar `npx expo start --clear`.
+- Conflito de merge no git: `git fetch origin && git reset --hard origin/claude/fix-expense-app-DuRrN`
+- Cache travado: sempre usar `--clear`.
+- **NUNCA renderizar elementos HTML crus (`'input'`, `'div'`, etc.) dentro da árvore React Native** — quebra o renderer web silenciosamente. Para file upload web, usar `document.createElement('input')` dinâmico no handler. Para DateTimePicker nativo, usar o wrapper `NativeDatePicker.tsx` + `NativeDatePicker.web.tsx`.
 
 ---
 
 ## O que Está Implementado
 
 - [x] Autenticação: login e cadastro via Supabase Auth
-- [x] Sessão persistida no dispositivo (AsyncStorage)
-- [x] Seletor de mês (horizontal, 18 meses)
-- [x] Página 1 — Visão Geral: total do mês + gráfico pizza por categoria
-- [x] Página 2 — Carteiras: lista com totais, tabs competência/caixa
-- [x] Página 2.1 — Adicionar carteira: nome, cor (12 opções), ícone (12 opções), ciclo caixa
-- [x] Página 2.2 — Editar carteira: mesmos campos + exclusão com dupla confirmação
-- [x] Página 3 — Extrato: lista ordenada por data, com categoria, carteira, parcelas, ícone recorrência
-- [x] Página 4 — Inserir gasto: nome, valor, data (DD/MM/AAAA), categoria, carteira, parcelamento, recorrência
-- [x] Página 5 — Exportar: CSV por período + filtro por carteira, compartilhamento nativo
+- [x] Sessão persistida (AsyncStorage)
+- [x] Seletor de mês — 18 meses para trás + meses futuros quando há parcelas/recorrências
+- [x] **Visão Geral:** total do mês + gráfico pizza por categoria + gráfico de barras roxas (últimos 12 meses, título "Gastos Total por Mês")
+- [x] **Carteiras:** lista com totais, tabs competência/caixa
+- [x] **Adicionar carteira:** nome, cor, ícone, ciclo caixa
+- [x] **Editar carteira:** mesmos campos + exclusão com dupla confirmação
+- [x] **Extrato:** lista ordenada por data, categoria, carteira, parcelas, ícone recorrência; fundo verde sutil para parcelados/recorrentes
+- [x] **Inserir gasto:** nome, valor, data (DD/MM/AAAA), categoria, carteira, parcelamento, recorrência; calendário nativo no Android
+- [x] **Export/Import (aba "Imp/Exp"):**
+  - Exportar: CSV por período + filtro por carteira
+  - Importar: upload de CSV com detecção de duplicatas; download de planilha modelo
+- [x] Suporte web (browser): `react-native-web` + Metro bundler
 - [x] Seed automático de categorias padrão no primeiro uso
-- [x] RLS no Supabase (isolamento por usuário)
+- [x] RLS no Supabase
 
 ---
 
@@ -230,8 +257,6 @@ Escanear o QR code com o Expo Go.
 - [ ] **Filtros no Extrato** — filtrar por carteira e/ou categoria além do mês
 - [ ] **Busca no Extrato** — campo de busca por nome da transação
 - [ ] **Resumo por carteira no Extrato** — mostrar subtotal por carteira
-- [ ] **Validação de datas** — usar um date picker visual em vez de texto livre
-- [ ] **Gráfico de barras** — na Visão Geral, evolução de gastos mês a mês
 - [ ] **Orçamento por categoria** — definir limite mensal e alertar quando ultrapassar
 - [ ] **Notificações** — lembrete para registrar gastos
 - [ ] **Geração de APK** — build via EAS para instalar direto no Android sem Expo Go
@@ -239,7 +264,7 @@ Escanear o QR code com o Expo Go.
 
 ---
 
-## Geração do APK (quando pronto para produzir)
+## Geração do APK (quando pronto)
 
 ```bash
 npm install -g eas-cli
@@ -248,15 +273,14 @@ eas build:configure
 eas build -p android --profile preview
 ```
 
-Gera um APK para instalar diretamente no Android (sem precisar de Play Store).
-Requer conta gratuita em expo.dev.
-
 ---
 
 ## Observações de Arquitetura
 
-- Todos os dados são buscados diretamente do Supabase nas telas (sem estado global além do Auth).
-- As telas do Extrato, Visão Geral e Carteiras re-buscam dados ao mudar o mês selecionado (`useCallback` + `useEffect`).
+- Dados buscados diretamente do Supabase nas telas (sem estado global além do Auth).
+- Extrato, Visão Geral e Carteiras re-buscam ao mudar o mês (`useCallback` + `useEffect`).
 - WalletsScreen usa `navigation.addListener('focus')` para atualizar ao voltar de AddWallet/EditWallet.
 - AddTransactionScreen usa `useFocusEffect` para recarregar carteiras/categorias ao focar.
-- O `MonthSelector` auto-scrolla para o mês selecionado via `scrollRef` com `setTimeout(150ms)`.
+- MonthSelector auto-scrolla para o mês selecionado via `scrollRef` com `setTimeout(150ms)`.
+- BarChart e PieChart da react-native-chart-kit funcionam no web via react-native-svg.
+- DateTimePicker nativo isolado em `NativeDatePicker.tsx` / `NativeDatePicker.web.tsx` — Metro resolve o arquivo correto por plataforma automaticamente.
