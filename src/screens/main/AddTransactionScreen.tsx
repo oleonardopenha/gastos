@@ -233,9 +233,11 @@ export default function AddTransactionScreen() {
             placeholder="22/04/2026"
             keyboardType="numbers-and-punctuation"
           />
-          <TouchableOpacity style={styles.calendarBtn} onPress={() => setDatePickerTarget('date')}>
-            <Ionicons name="calendar-outline" size={22} color="#6C63FF" />
-          </TouchableOpacity>
+          {Platform.OS !== 'web' && (
+            <TouchableOpacity style={styles.calendarBtn} onPress={() => setDatePickerTarget('date')}>
+              <Ionicons name="calendar-outline" size={22} color="#6C63FF" />
+            </TouchableOpacity>
+          )}
         </View>
 
         <Text style={styles.label}>Categoria</Text>
@@ -304,9 +306,11 @@ export default function AddTransactionScreen() {
                 placeholder="31/12/2026"
                 keyboardType="numbers-and-punctuation"
               />
-              <TouchableOpacity style={styles.calendarBtn} onPress={() => setDatePickerTarget('recurrenceEnd')}>
-                <Ionicons name="calendar-outline" size={22} color="#6C63FF" />
-              </TouchableOpacity>
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity style={styles.calendarBtn} onPress={() => setDatePickerTarget('recurrenceEnd')}>
+                  <Ionicons name="calendar-outline" size={22} color="#6C63FF" />
+                </TouchableOpacity>
+              )}
             </View>
           </>
         )}
@@ -364,7 +368,7 @@ export default function AddTransactionScreen() {
         </SafeAreaView>
       </Modal>
 
-      {datePickerTarget !== null && (
+      {datePickerTarget !== null && Platform.OS !== 'web' && (
         <DateTimePicker
           value={getPickerDate()}
           mode="date"

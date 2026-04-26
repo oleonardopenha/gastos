@@ -11,7 +11,10 @@
         "backgroundColor": "#6C63FF"
       }
     },
-    "platforms": ["android"],
-    "newArchEnabled": true
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "platforms": ["android", "web"]
   }
 }
